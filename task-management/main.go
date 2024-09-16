@@ -9,7 +9,7 @@ import (
 	"github.com/Unchana19/task-management/domain/usecases"
 	"github.com/Unchana19/task-management/internal/adapters/mysql"
 	"github.com/Unchana19/task-management/internal/adapters/rest"
-	"github.com/Unchana19/task-management/middlewares"
+	"github.com/Unchana19/task-management/internal/middlewares"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jmoiron/sqlx"
