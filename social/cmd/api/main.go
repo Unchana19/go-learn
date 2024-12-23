@@ -5,6 +5,7 @@ import (
 
 	"github.com/Unchana19/social/internal/db"
 	"github.com/Unchana19/social/internal/env"
+	"github.com/Unchana19/social/internal/mailer"
 	"github.com/Unchana19/social/internal/store"
 	"go.uber.org/zap"
 )
@@ -32,6 +33,7 @@ func main() {
 	cfg := config{
 		addr:   env.GetString("ADDR", ":9000"),
 		apiURL: env.GetString("EXTERNAL_URL", "localhost:9000"),
+		frontendURL: env.GetString("FRONTEND_URL", "http://localhost:3000"),
 		db: dbConfig{
 			addr:         env.GetString("DB_ADDR", "postgres://postgres:password@localhost/social?sslmode=disable"),
 			maxOpenConns: env.GetInt("DB_MAX_OPEN_CONNS", 30),
@@ -40,7 +42,11 @@ func main() {
 		},
 		env: env.GetString("ENV", "delvelopment"),
 		mail: mailConfig{
-			exp: time.Hour * 24 * 3,
+			exp:       time.Hour * 24 * 3,
+			fromEmail: env.GetString("SENDGRID_FROM_EMAIL", ""),
+			sendGrid: sendGridConfig{
+				apiKey: env.GetString("SENDGRID_API_KEY", ""),
+			},
 		},
 	}
 
@@ -59,10 +65,13 @@ func main() {
 
 	store := store.NewStorage(db)
 
+	mailer := mailer.NewSendGrid(cfg.mail.sendGrid.apiKey, cfg.mail.fromEmail)
+
 	app := &application{
 		config: cfg,
 		store:  store,
 		logger: logger,
+		mailer: mailer,
 	}
 
 	mux := app.mount()
