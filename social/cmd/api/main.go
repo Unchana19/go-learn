@@ -31,8 +31,8 @@ const version = "0.0.1"
 // @description
 func main() {
 	cfg := config{
-		addr:   env.GetString("ADDR", ":9000"),
-		apiURL: env.GetString("EXTERNAL_URL", "localhost:9000"),
+		addr:        env.GetString("ADDR", ":9000"),
+		apiURL:      env.GetString("EXTERNAL_URL", "localhost:9000"),
 		frontendURL: env.GetString("FRONTEND_URL", "http://localhost:3000"),
 		db: dbConfig{
 			addr:         env.GetString("DB_ADDR", "postgres://postgres:password@localhost/social?sslmode=disable"),
@@ -46,6 +46,9 @@ func main() {
 			fromEmail: env.GetString("SENDGRID_FROM_EMAIL", ""),
 			sendGrid: sendGridConfig{
 				apiKey: env.GetString("SENDGRID_API_KEY", ""),
+			},
+			mailTrap: mailTrapConfig{
+				apiKey: env.GetString("MAILTRAP_API_KEY", ""),
 			},
 		},
 	}
@@ -65,13 +68,17 @@ func main() {
 
 	store := store.NewStorage(db)
 
-	mailer := mailer.NewSendGrid(cfg.mail.sendGrid.apiKey, cfg.mail.fromEmail)
+	// mailer := mailer.NewSendGrid(cfg.mail.sendGrid.apiKey, cfg.mail.fromEmail)
+	mailtrap, err := mailer.NewMailtrapClient(cfg.mail.fromEmail, cfg.mail.mailTrap.apiKey)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	app := &application{
 		config: cfg,
 		store:  store,
 		logger: logger,
-		mailer: mailer,
+		mailer: mailtrap,
 	}
 
 	mux := app.mount()
