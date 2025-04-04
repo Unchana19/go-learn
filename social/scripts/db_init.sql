@@ -1,2 +1,2 @@
-CREATE DATABASE social;
-CREATE EXTENSION IF NOT EXISTS citext;
+create extension if not exists citext;
+create database if not exists golearn;
