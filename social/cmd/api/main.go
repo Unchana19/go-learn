@@ -9,6 +9,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const version = "1.0.0"
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println(".env file not found")
@@ -22,6 +24,7 @@ func main() {
 			maxIdleConns: env.GetInt("DB_MAX_IDLE_CONNS", 5),
 			maxIdleTime:  env.GetString("DB_MAX_IDLE_TIME", "10s"),
 		},
+		env: env.GetString("ENV", "development"),
 	}
 
 	db, err := db.New(cfg.db.addr, cfg.db.maxOpenConns, cfg.db.maxIdleConns, cfg.db.maxIdleTime)
