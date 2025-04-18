@@ -1,3 +1,5 @@
+create extension if not exists citext;
+
 create table if not exists users (
   id bigserial primary key,
   email citext unique not null,
