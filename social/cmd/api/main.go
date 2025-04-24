@@ -7,6 +7,7 @@ import (
 	"github.com/Unchana19/go-learn/internal/env"
 	"github.com/Unchana19/go-learn/internal/store"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 const version = "1.0.0"
@@ -45,22 +46,29 @@ func main() {
 		env: env.GetString("ENV", "development"),
 	}
 
+	// Logger
+	logger := zap.Must(zap.NewProduction()).Sugar()
+	defer logger.Sync()
+
+	// Database
 	db, err := db.New(cfg.db.addr, cfg.db.maxOpenConns, cfg.db.maxIdleConns, cfg.db.maxIdleTime)
 	if err != nil {
-		log.Panic(err)
+		logger.Panic(err)
 	}
 
 	defer db.Close()
-	log.Printf("Connected to database: %s\n", cfg.db.addr)
+	logger.Info("Connected to database: %s\n", cfg.db.addr)
 
+	// Store
 	store := store.NewStorage(db)
 
 	app := &application{
 		config: cfg,
 		store:  store,
+		logger: logger,
 	}
 
 	mux := app.mount()
 
-	log.Fatal(app.run(mux))
+	logger.Fatal(app.run(mux))
 }
