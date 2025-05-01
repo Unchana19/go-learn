@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Unchana19/go-learn/docs"
+	"github.com/Unchana19/go-learn/internal/mailer"
 	"github.com/Unchana19/go-learn/internal/store"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -17,14 +18,16 @@ type application struct {
 	config config
 	store  store.Storage
 	logger *zap.SugaredLogger
+	mailer mailer.Client
 }
 
 type config struct {
-	addr   string
-	db     dbConfig
-	env    string
-	apiURL string
-	mail   mailConfig
+	addr        string
+	db          dbConfig
+	env         string
+	apiURL      string
+	frontendURL string
+	mail        mailConfig
 }
 
 type dbConfig struct {
@@ -35,7 +38,18 @@ type dbConfig struct {
 }
 
 type mailConfig struct {
-	exp time.Duration
+	exp       time.Duration
+	fromEmail string
+	sendGrid  sendGridConfig
+	mailTrap  mailTrapConfig
+}
+
+type sendGridConfig struct {
+	apiKey string
+}
+
+type mailTrapConfig struct {
+	apiKey string
 }
 
 func (app *application) mount() http.Handler {

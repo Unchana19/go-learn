@@ -6,6 +6,7 @@ import (
 
 	"github.com/Unchana19/go-learn/internal/db"
 	"github.com/Unchana19/go-learn/internal/env"
+	"github.com/Unchana19/go-learn/internal/mailer"
 	"github.com/Unchana19/go-learn/internal/store"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
@@ -36,8 +37,9 @@ func main() {
 	}
 
 	cfg := config{
-		addr:   env.GetString("ADDR", ":9000"),
-		apiURL: env.GetString("EXTERNAL_URL", "localhost:9000"),
+		addr:        env.GetString("ADDR", ":9000"),
+		apiURL:      env.GetString("EXTERNAL_URL", "localhost:9000"),
+		frontendURL: env.GetString("FRONTEND_URL", "http://localhost:3000"),
 		db: dbConfig{
 			addr:         env.GetString("DB_ADDR", "postgres://postgres:password@localhost:5432/golearn?sslmode=disable"),
 			maxOpenConns: env.GetInt("DB_MAX_OPEN_CONNS", 10),
@@ -46,7 +48,14 @@ func main() {
 		},
 		env: env.GetString("ENV", "development"),
 		mail: mailConfig{
-			exp: time.Hour * 24 * 3,
+			exp:       time.Hour * 24 * 3,
+			fromEmail: env.GetString("SENDGRID_FROM_EMAIL", ""),
+			sendGrid: sendGridConfig{
+				apiKey: env.GetString("SENDGRID_API_KEY", ""),
+			},
+			mailTrap: mailTrapConfig{
+				apiKey: env.GetString("MAILTRAP_API_KEY", ""),
+			},
 		},
 	}
 
@@ -66,10 +75,13 @@ func main() {
 	// Store
 	store := store.NewStorage(db)
 
+	mailer := mailer.NewSendGridMailer(cfg.mail.fromEmail, cfg.mail.sendGrid.apiKey)
+
 	app := &application{
 		config: cfg,
 		store:  store,
 		logger: logger,
+		mailer: mailer,
 	}
 
 	mux := app.mount()
