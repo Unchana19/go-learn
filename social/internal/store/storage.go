@@ -10,6 +10,8 @@ import (
 var (
 	ErrNotFound          = errors.New("resource not found")
 	ErrDuplicate         = errors.New("resource already exists")
+	ErrDuplicateUsername = errors.New("username already exists")
+	ErrDuplicateEmail    = errors.New("email already exists")
 	QueryTimeoutDuration = 3 * time.Second
 )
 
@@ -23,7 +25,9 @@ type Storage struct {
 	}
 	Users interface {
 		GetByID(context.Context, int64) (*User, error)
-		Create(context.Context, *User) error
+		Create(context.Context, *sql.Tx, *User) error
+		CreateAndInvite(context.Context, *User, string, time.Duration) error
+		Activate(context.Context, string) error
 	}
 	Comments interface {
 		GetByPostID(context.Context, int64) ([]Comment, error)
@@ -42,4 +46,20 @@ func NewStorage(db *sql.DB) Storage {
 		Comments:  &CommentStore{db: db},
 		Followers: &FollowerStore{db: db},
 	}
+}
+
+func withTx(db *sql.DB, ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := fn(tx); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return rbErr
+		}
+		return err
+	}
+
+	return tx.Commit()
 }
