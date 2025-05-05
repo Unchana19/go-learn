@@ -5,10 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Unchana19/go-learn/internal/mailer"
 	"github.com/Unchana19/go-learn/internal/store"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type RegisterUserPayload struct {
@@ -110,4 +113,75 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		app.internalServerError(w, r, err)
 		return
 	}
+}
+
+type CreateUserTokenPayload struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6,max=255"`
+}
+
+// CreateToken godoc
+//
+//	@Summary	Create a new token
+//	@Tags		authentication
+//	@Accept		json
+//	@Produce	json
+//	@Param		payload	body		CreateUserTokenPayload	true	"User payload"
+//	@Success	200		{object}	string
+//	@Failure	400		{object}	error
+//	@Failure	401		{object}	error
+//	@Router		/v1/authentication/token [post]
+func (app *application) createTokenHandler(w http.ResponseWriter, r *http.Request) {
+	var payload CreateUserTokenPayload
+	if err := readJSON(w, r, &payload); err != nil {
+		app.badRequest(w, r, err)
+		return
+	}
+
+	if err := Validate.Struct(payload); err != nil {
+		app.badRequest(w, r, err)
+		return
+	}
+
+	user, err := app.store.Users.GetByEmail(r.Context(), payload.Email)
+	if err != nil {
+		switch err {
+		case store.ErrNotFound:
+			app.unauthorized(w, r, err)
+			return
+		default:
+			app.internalServerError(w, r, err)
+			return
+		}
+	}
+
+	if err := app.compareHashedPassword(payload.Password, user.Password.Hash); err != nil {
+		app.unauthorized(w, r, err)
+		return
+	}
+
+	claims := jwt.MapClaims{
+		"sub": user.ID,
+		"exp": time.Now().Add(app.config.auth.token.exp).Unix(),
+		"iat": time.Now().Unix(),
+		"nbf": time.Now().Unix(),
+		"iss": app.config.auth.token.issuer,
+		"aud": app.config.auth.token.audience,
+	}
+
+	token, err := app.authenticator.GenerateToken(claims)
+	if err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+
+	if err := app.jsonResponse(w, http.StatusCreated, token); err != nil {
+		app.internalServerError(w, r, err)
+		return
+	}
+}
+
+func (app *application) compareHashedPassword(password string, hashedPassword []byte) error {
+	err := bcrypt.CompareHashAndPassword(hashedPassword, []byte(password))
+	return err
 }

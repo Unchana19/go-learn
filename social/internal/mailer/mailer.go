@@ -9,7 +9,7 @@ const (
 	UserWelcomeTemplate = "user_invitation.templ"
 )
 
-// go:embed "templates"
+//go:embed "templates"
 var FS embed.FS
 
 type Client interface {

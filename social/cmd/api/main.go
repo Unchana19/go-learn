@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/Unchana19/go-learn/internal/auth"
 	"github.com/Unchana19/go-learn/internal/db"
 	"github.com/Unchana19/go-learn/internal/env"
 	"github.com/Unchana19/go-learn/internal/mailer"
@@ -62,6 +63,12 @@ func main() {
 				user: env.GetString("BASIC_AUTH_USER", "admin"),
 				pass: env.GetString("BASIC_AUTH_PASS", "admin"),
 			},
+			token: tokenConfig{
+				secret:   env.GetString("JWT_SECRET", "secret"),
+				exp:      time.Hour * 24 * 3,
+				issuer:   env.GetString("JWT_ISSUER", "http://localhost:9000"),
+				audience: env.GetString("JWT_AUDIENCE", "http://localhost:9000"),
+			},
 		},
 	}
 
@@ -83,11 +90,14 @@ func main() {
 
 	mailer := mailer.NewSendGridMailer(cfg.mail.fromEmail, cfg.mail.sendGrid.apiKey)
 
+	jwtAuthenticator := auth.NewJWTAuthenticator(cfg.auth.token.secret, cfg.auth.token.audience, cfg.auth.token.issuer)
+
 	app := &application{
-		config: cfg,
-		store:  store,
-		logger: logger,
-		mailer: mailer,
+		config:        cfg,
+		store:         store,
+		logger:        logger,
+		mailer:        mailer,
+		authenticator: jwtAuthenticator,
 	}
 
 	mux := app.mount()

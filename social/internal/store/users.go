@@ -21,8 +21,8 @@ type User struct {
 }
 
 type password struct {
-	text *string
-	hash []byte
+	Text *string
+	Hash []byte
 }
 
 func (p *password) Set(text string) error {
@@ -31,8 +31,8 @@ func (p *password) Set(text string) error {
 		return err
 	}
 
-	p.text = &text
-	p.hash = hash
+	p.Text = &text
+	p.Hash = hash
 
 	return nil
 }
@@ -50,7 +50,7 @@ func (s *UserStore) Create(ctx context.Context, tx *sql.Tx, user *User) error {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
 
-	err := tx.QueryRowContext(ctx, query, user.Username, user.Password.hash, user.Email).Scan(&user.ID, &user.CreatedAt)
+	err := tx.QueryRowContext(ctx, query, user.Username, user.Password.Hash, user.Email).Scan(&user.ID, &user.CreatedAt)
 	if err != nil {
 		switch err.Error() {
 		case "pq: duplicate key value violates unique constraint \"users_username_key\"":
@@ -134,6 +134,29 @@ func (s *UserStore) Delete(ctx context.Context, id int64) error {
 
 		return nil
 	})
+}
+
+func (s *UserStore) GetByEmail(ctx context.Context, email string) (*User, error) {
+	query := `
+		SELECT id, username, email, password, created_at
+		FROM users
+		WHERE email = $1 AND is_activated = true
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	defer cancel()
+
+	user := &User{}
+	if err := s.db.QueryRowContext(ctx, query, email).Scan(&user.ID, &user.Username, &user.Email, &user.Password.Hash, &user.CreatedAt); err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return nil, ErrNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return user, nil
 }
 
 func (s *UserStore) createUserInvitation(ctx context.Context, tx *sql.Tx, token string, inviteExp time.Duration, userID int64) error {

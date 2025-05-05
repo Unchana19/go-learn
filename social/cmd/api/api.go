@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Unchana19/go-learn/docs"
+	"github.com/Unchana19/go-learn/internal/auth"
 	"github.com/Unchana19/go-learn/internal/mailer"
 	"github.com/Unchana19/go-learn/internal/store"
 	"github.com/go-chi/chi/v5"
@@ -15,10 +16,11 @@ import (
 )
 
 type application struct {
-	config config
-	store  store.Storage
-	logger *zap.SugaredLogger
-	mailer mailer.Client
+	config        config
+	store         store.Storage
+	logger        *zap.SugaredLogger
+	mailer        mailer.Client
+	authenticator auth.Authenticator
 }
 
 type config struct {
@@ -47,11 +49,19 @@ type mailConfig struct {
 
 type authConfig struct {
 	basic basicAuthConfig
+	token tokenConfig
 }
 
 type basicAuthConfig struct {
 	user string
 	pass string
+}
+
+type tokenConfig struct {
+	secret   string
+	exp      time.Duration
+	issuer   string
+	audience string
 }
 
 type sendGridConfig struct {
@@ -77,7 +87,9 @@ func (app *application) mount() http.Handler {
 		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL(docsURL)))
 
 		r.Route("/posts", func(r chi.Router) {
+			r.Use(app.AuthTokenMiddleware)
 			r.Post("/", app.createPostHandler)
+
 			r.Route("/{postID}", func(r chi.Router) {
 				r.Use(app.postsContextMiddleware)
 				r.Get("/", app.getPostHandler)
@@ -94,7 +106,8 @@ func (app *application) mount() http.Handler {
 			r.Put("/activate/{token}", app.activateUserHandler)
 
 			r.Route("/{userID}", func(r chi.Router) {
-				r.Use(app.userContextMiddleware)
+				r.Use(app.AuthTokenMiddleware)
+				
 				r.Get("/", app.getUserHandler)
 				r.Put("/follow", app.followUserHandler)
 				r.Put("/unfollow", app.unfollowUserHandler)
@@ -103,11 +116,12 @@ func (app *application) mount() http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Get("/feed", app.getUserFeedHandler)
 			})
-
-			// Public routes
-			r.Route("/authentication", func(r chi.Router) {
-				r.Post("/register", app.registerUserHandler)
-			})
+		})
+		
+		// Public routes
+		r.Route("/authentication", func(r chi.Router) {
+			r.Post("/register", app.registerUserHandler)
+			r.Post("/token", app.createTokenHandler)
 		})
 	})
 
