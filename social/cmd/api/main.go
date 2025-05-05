@@ -57,6 +57,12 @@ func main() {
 				apiKey: env.GetString("MAILTRAP_API_KEY", ""),
 			},
 		},
+		auth: authConfig{
+			basic: basicAuthConfig{
+				user: env.GetString("BASIC_AUTH_USER", "admin"),
+				pass: env.GetString("BASIC_AUTH_PASS", "admin"),
+			},
+		},
 	}
 
 	// Logger
